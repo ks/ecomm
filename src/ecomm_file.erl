@@ -14,7 +14,7 @@ tm(Filename, FilenameFrameDef) ->
     {timestamp, ?TIMESTAMP_WILDCARD = T} = lists:keyfind(timestamp, 1, FilenameKVs),
     T.
 
-select({Path, [C | _] = Wildcard}) when is_integer(C) -> 
+select({Path, [C | _] = Wildcard}) when is_integer(C) ->
     filelib:wildcard(filename:join(Path, Wildcard));
 select({Path, [F0 | _] = Fs}) when is_list(F0) ->
     [filename:join(Path, F) || F <- Fs];
@@ -31,7 +31,7 @@ select_within(FilenameSel, FilenameFrameDef, {?TIMESTAMPKEY_WILDCARD = {T1, _},
     select_within(FilenameSel, FilenameFrameDef, {T1, T2});
 select_within(FilenameSel, FilenameFrameDef, TimeRangeSpec) when is_tuple(TimeRangeSpec) ->
     select_within(FilenameSel, FilenameFrameDef, ecomm_time:spec_to_tmrange(TimeRangeSpec)).
-    
+
 tm_range_files([{TM1, F1}, {TM2, F2} | TMFs]) ->
     [{{TM1, TM2}, F1} | tm_range_files([{TM2, F2} | TMFs])];
 tm_range_files([{TM, F}]) ->
@@ -68,6 +68,3 @@ updates(Filenames, LoadedFFIs) ->
     NewFilenames = [F || F <- Filenames, not lists:keymember(F, 1, LoadedFFIs)],
     {NewFFIs, []} = file_infos(NewFilenames),
     {NewFFIs, UpdFFIs, DelFFIs}.
-
-      
-                 

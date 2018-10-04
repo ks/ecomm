@@ -39,7 +39,7 @@ dt_ext({_, _, MS} = ?TIMESTAMP_WILDCARD = TM, loc) ->
     {D, {T1, T2, T3, MS}};
 dt_ext({?TIMESTAMP_WILDCARD = TM1, ?TIMESTAMP_WILDCARD = TM2}, OutTMSpec) ->
     {dt_ext(TM1, OutTMSpec), dt_ext(TM2, OutTMSpec)}.
-    
+
 %% converts to UNI timestamp or TMKey (timestamp + index to for uniqueness)
 tm({Mark, D}) when Mark == uni orelse Mark == loc ->
     tm({Mark, D}, uni_loc_diff_secs()).
@@ -144,7 +144,7 @@ range(dt, {Tok, X, Units}, uni) when X >= 0 andalso (Tok == last orelse Tok == f
     {uni, range(dt, Tok, calendar:universal_time(), seconds({X, Units}))};
 range(dt, {Tok, X, Units}, loc) when X >= 0 andalso (Tok == last orelse Tok == first) ->
     {loc, range(dt, Tok, calendar:local_time(), seconds({X, Units}))}.
-    
+
 range(dt, last, ?DATE_TIME_WILDCARD = BaseDT, Seconds) ->
     T1Secs = calendar:datetime_to_gregorian_seconds(BaseDT),
     {calendar:gregorian_seconds_to_datetime(T1Secs - Seconds), BaseDT};
@@ -166,7 +166,7 @@ parse(dt, Str) when is_list(Str) ->
     ToksLen = length(Toks),
     if ToksLen =< 0 ->
             {error, too_short};
-        ToksLen > 7 ->
+       ToksLen > 7 ->
             {error, too_long};
        true ->
             try [begin I = list_to_integer(X), true = I >= 0, I end || X <- Toks] of
@@ -179,7 +179,7 @@ parse(dt, Str) when is_list(Str) ->
                         end,
                     DT = {{Y, Mo, D}, {H, Mi, S}},
                     case valid(dt, DT) of
-                        true -> {ok, if Ms == 0 -> DT; 
+                        true -> {ok, if Ms == 0 -> DT;
                                         true -> {{Y, Mo, D}, {H, Mi, S, Ms * 1000}}
                                      end};
                         false -> {error, invalid_datetime}

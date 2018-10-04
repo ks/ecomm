@@ -11,7 +11,7 @@
 %% supervision tree looks as:
 %% (example for one TCP on port 11111 (with 2 acceptors) and one UDP on port 22222):
 %%
-%%                module               |              name               |             strategy 
+%%                module               |              name               |             strategy
 %%
 %% ecomm_conn_mgr_sup                  |  ecomm_conn_mgr_sup             |  one_for_one
 %% |- ecomm_tcps_sup                   |  ecomm_tcps_sup                 |  simple_one_for_one
@@ -33,7 +33,7 @@ start_link() ->
 
 kill() ->
     exit(whereis(?MODULE), kill).
-    
+
 %%%===================================================================
 %%% Supervisor callbacks
 %%%===================================================================

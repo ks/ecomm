@@ -20,19 +20,20 @@ load(FilenameSel, MsgFrameDef, {FilenameFrameDef, {Mark, Ds}}, Tab) ->
                         MsgTM = ecomm_pl:getv(timestamp, KVs),
                         ecomm_time:within(MsgTM, Ts1)
                 end,
-    loadn(ecomm_file:select_within(FilenameSel, FilenameFrameDef, Ts1), MsgFrameDef, MsgWithin, Tab);
+    loadn(ecomm_file:select_within(FilenameSel, FilenameFrameDef, Ts1),
+          MsgFrameDef, MsgWithin, Tab);
 load(FilenameSel, MsgFrameDef, MsgWithin, Tab) when is_function(MsgWithin, 1) ->
     loadn(ecomm_file:select(FilenameSel), MsgFrameDef, MsgWithin, Tab).
-    
+
 
 loadn(Filenames, MsgFrameDef, MsgWithin, Tab) when is_function(MsgWithin, 1) ->
     ok = validate_msg_frame_def(MsgFrameDef),
     Loader = self(),
     Ref = make_ref(),
     MsgKeys = lists:keydelete(timestamp, 1, ecomm_scan:framedef_keys(MsgFrameDef)),
-    [spawn(fun () -> 
-                   load1(F, MsgFrameDef, MsgWithin, MsgKeys, Tab), 
-                   Loader ! {Ref, F} 
+    [spawn(fun () ->
+                   load1(F, MsgFrameDef, MsgWithin, MsgKeys, Tab),
+                   Loader ! {Ref, F}
            end) || F <- Filenames],
     Sync = fun (_, []) -> ok;
                (S, [_ | _] = Rem) -> receive {Ref, F} -> S(S, Rem -- [F]) end
@@ -58,7 +59,8 @@ load1(Filename, MsgFrameDef, MsgWithin, MsgKeys, {LastTM, TMIdx, Total}, Tab) ->
                                            TM == LastTM0 -> {{TM, TMIdx0}, TMIdx0 + 1};
                                            TM /= LastTM0 -> {{TM, 0}, 1}
                                         end,
-                      Entry = list_to_tuple([TMKey | [proplists:get_value(K, KVs) || K <- MsgKeys]]),
+                      Entry = list_to_tuple([TMKey | [proplists:get_value(K, KVs) ||
+                                                         K <- MsgKeys]]),
                       ets:insert(Tab, Entry),
                       {cont, {TM, TMIdx1, Total0 + 1}};
                   false ->
@@ -66,7 +68,7 @@ load1(Filename, MsgFrameDef, MsgWithin, MsgKeys, {LastTM, TMIdx, Total}, Tab) ->
               end
       end, MsgFrameDef, {LastTM, TMIdx, Total}, <<"\n">>, Bin).
 
-    
+
 get_within_keys(Tab, undefined) ->
     case {first_tm(Tab), last_tm(Tab)} of
         {schema, _} -> none;
@@ -130,7 +132,7 @@ cont_timebases({ok, Msgs, Cont}, RangeKind, BatchSize) ->
     MaybeTB = fun (MsgPos) ->
                       case IsFullBatch() of
                           false -> <<"">>;
-                          true -> 
+                          true ->
                               FormatTB(case MsgPos of
                                            first -> hd(Msgs);
                                            last -> lists:last(Msgs)
@@ -148,14 +150,14 @@ cont_timebases({ok, Msgs, Cont}, RangeKind, BatchSize) ->
 
 search(empty_none, {_AnyAll, _FrameKVPatterns}, _TMRange, _MsgsBatchSize) ->
     {ok, [], none};
-search(Tab, {AnyAll, FrameKVPatterns}, TMRange, MsgsBatchSize) 
+search(Tab, {AnyAll, FrameKVPatterns}, TMRange, MsgsBatchSize)
   when AnyAll == any orelse AnyAll == all ->
     [{schema, Schema}] = ets:lookup(Tab, schema),
     case get_within_keys(Tab, TMRange) of
         {ok, TMKeys} ->
             MsgWithin = fun (Elt) ->
                                 {TM, _} = element(1, Elt),
-                                ecomm_time:within(TM, TMKeys) 
+                                ecomm_time:within(TM, TMKeys)
                         end,
             try [{ok, _} = re:compile(Pat) || {_, Pat} <- FrameKVPatterns] of
                 Pats when is_list(Pats) ->
@@ -171,7 +173,7 @@ search(Tab, {AnyAll, FrameKVPatterns}, TMRange, MsgsBatchSize)
             {ok, [], none}
     end.
 
-search1(Tab, {EtsAdvance, KeyFn, NextTMsFn, TimeCheckFn, ResultFn} = SearchFns, 
+search1(Tab, {EtsAdvance, KeyFn, NextTMsFn, TimeCheckFn, ResultFn} = SearchFns,
         EltTester, TMs, Todo, Acc) ->
     case TimeCheckFn(TMs) of
         false ->
@@ -208,7 +210,7 @@ search_fns({?TIMESTAMPKEY_WILDCARD, ?TIMESTAMPKEY_WILDCARD}) ->
     {next,                                              % advance
      fun ({TM1, _TM2}) -> TM1 end,                      % get key
      fun ('$end_of_table', _) -> none;                  % next tms
-         (NextTM, {_TM1, TM2}) -> {NextTM, TM2} 
+         (NextTM, {_TM1, TM2}) -> {NextTM, TM2}
      end,
      fun ({TM1, TM2}) -> TM1 =< TM2 end,                 % tm stop
      fun lists:reverse/1};                              % result fun
@@ -216,19 +218,19 @@ search_fns({from, ?TIMESTAMPKEY_WILDCARD}) ->
     {next,
      fun ({from, TM}) -> TM end,
      fun ('$end_of_table', _) -> none;
-         (NextTM, {from, _TM}) -> {from, NextTM} 
+         (NextTM, {from, _TM}) -> {from, NextTM}
      end,
      fun (_) -> true end,
      fun lists:reverse/1};
 search_fns({to, ?TIMESTAMPKEY_WILDCARD}) ->
-    {prev, 
+    {prev,
      fun ({to, TM}) -> TM end,
      fun (schema, _) -> none;
          (PrevTM, {to, _TM}) -> {to, PrevTM} end,
      fun (_) -> true end,
      fun (Xs) -> Xs end};
 search_fns({to_from, {?TIMESTAMPKEY_WILDCARD, ?TIMESTAMPKEY_WILDCARD}}) ->
-    {prev, 
+    {prev,
      fun ({to_from, {TM2, _TM1}}) -> TM2 end,
      fun (schema, _) -> none;
          (PrevTM, {to_from, {_TM2, TM1}}) -> {to_from, {PrevTM, TM1}} end,
@@ -266,7 +268,7 @@ elt_match_tester(Schema, FrameKVPatterns, AllAny, GetFn)
 
 %%%%%%%%%%%%%%%%%%%%
 
-first_tm(Tab) -> 
+first_tm(Tab) ->
     ets:next(Tab, schema).
 
 last_tm(Tab) ->
@@ -300,7 +302,3 @@ parse_file(Filename, FrameDef) ->
                           {cont, queue:in(KVs, Q)}
                   end, FrameDef, queue:new(), <<"\n">>, Bin),
     queue:to_list(ResQ).
-
-
-
-

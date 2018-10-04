@@ -17,7 +17,8 @@ add_sup(Port, Opts, CSockFn, NumAcceptors) ->
     supervisor:start_child(?MODULE, [Port, Opts, CSockFn, NumAcceptors]).
 
 add_sup(Port, Opts, CSockFn, NumAcceptors, MaxReqsPerSec, MaxReqAgeMSec) ->
-    supervisor:start_child(?MODULE, [Port, Opts, CSockFn, NumAcceptors, MaxReqsPerSec, MaxReqAgeMSec]).
+    supervisor:start_child(
+      ?MODULE, [Port, Opts, CSockFn, NumAcceptors, MaxReqsPerSec, MaxReqAgeMSec]).
 
 del_sup(SupPid) ->
     supervisor:terminate_child(?MODULE, SupPid).
@@ -28,6 +29,6 @@ del_sup(SupPid) ->
 
 init([]) ->
     Spec = [{ecomm_tcp_sup,
-	     {ecomm_tcp_sup, start_link, []}, permanent, 2000, supervisor, 
+	     {ecomm_tcp_sup, start_link, []}, permanent, 2000, supervisor,
 	     [ecomm_tcp_sup]}],
     {ok, {{simple_one_for_one, 1, 1}, Spec}}.

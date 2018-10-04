@@ -30,7 +30,7 @@ init([LSock, CSockFn]) ->
 handle_cast(start_accepting, {LSock, CSockFn}) ->
     acceptor_loop(LSock, CSockFn),
     {noreply, {LSock, CSockFn}};
-handle_cast(_Msg, State) -> 
+handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_call(_Request, _From, State) -> {reply, ignored, State}.
@@ -45,7 +45,8 @@ terminate(_Reason, _State) -> ok.
 acceptor_loop(LSock, CSockFn) ->
     case gen_tcp:accept(LSock) of
 	{ok, CSock} ->
-	    CSockFn(LSock, CSock),% CSockFn MUST disown client socket (via gen_tcp:controlling_process)
+            %% CSockFn MUST disown client socket (via gen_tcp:controlling_process)
+	    CSockFn(LSock, CSock),
 	    acceptor_loop(LSock, CSockFn);
 	{error, Reason} ->
 	    error({ecomm_tcp_acceptor, Reason})

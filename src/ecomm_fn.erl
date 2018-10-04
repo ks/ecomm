@@ -13,8 +13,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 identity(X) -> X.
-     
-ensure(F, Arity) when is_function(F, Arity) -> 
+
+ensure(F, Arity) when is_function(F, Arity) ->
     F;
 ensure({M, F}, Arity) when is_atom(M), is_atom(F) ->
     true = lists:member({F, Arity}, M:module_info(exports)),
@@ -32,7 +32,7 @@ apply_tm(Fn, Args, TimeoutMS) when TimeoutMS >= 0 ->
     Pid = spawn(?MODULE, do_apply_fn, [Caller, Ref, Fn, Args]),
     receive
         {ecomm_fn_reply, Ref, Res} -> Res
-    after 
+    after
         TimeoutMS ->
             erlang:exit(Pid, kill),
             {error, timeout}
@@ -72,7 +72,7 @@ pmap(Fn, ExtraArgs, Elts, Timeout) when is_list(ExtraArgs), is_list(Elts) ->
                              end,
                        Top ! {Ref, Rcv(Num, [])}
                end),
-    receive 
+    receive
         {Ref, Result} ->
             Result
     after

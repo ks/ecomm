@@ -17,7 +17,7 @@ gen_load(F, NumProcs, TestRunMS, ReqDelayMS)
        is_integer(ReqDelayMS), ReqDelayMS >= 0 ->
     Gen = fun (G, ProcId, ReqId) ->
                   case F(ProcId, ReqId) of
-                      stop -> 
+                      stop ->
                           bye;
                       _ ->
                           ReqDelayMS == 0 orelse timer:sleep(ReqDelayMS),
@@ -27,12 +27,12 @@ gen_load(F, NumProcs, TestRunMS, ReqDelayMS)
     spawn(fun () ->
                   Ref = make_ref(),
                   erlang:send_after(TestRunMS, self(), {stop, Ref}),
-                  Pids = [spawn_link(fun () -> 
-                                             receive 
-                                                 {start, Ref} -> 
-                                                     Gen(Gen, ProcId, 0) 
-                                             end 
-                                     end) || 
+                  Pids = [spawn_link(fun () ->
+                                             receive
+                                                 {start, Ref} ->
+                                                     Gen(Gen, ProcId, 0)
+                                             end
+                                     end) ||
                              ProcId <- lists:seq(1, NumProcs)],
                   [Pid ! {start, Ref} || Pid <- Pids],
                   receive
@@ -50,9 +50,9 @@ tcp_connect({Host, Port}, Timeout) ->
     gen_tcp:connect(Host, Port, [binary, {active, false}], Timeout).
 with_tcp({TgtHost, TgtPort}, SockFn) when is_function(SockFn, 2) ->
     case tcp_connect({TgtHost, TgtPort}) of
-        {ok, Socket} -> 
+        {ok, Socket} ->
             try SockFn(Socket, infinity) after gen_tcp:close(Socket) end;
-        Error -> 
+        Error ->
             Error
     end.
 with_tcp({TgtHost, TgtPort}, SockFn, infinity) when is_function(SockFn, 2) ->
@@ -77,12 +77,12 @@ tcp_send_recv({Host, Port}, BinChunk) when is_binary(BinChunk) ->
     tcp_send_recv({Host, Port}, BinChunk, infinity).
 tcp_send_recv({Host, Port}, BinChunk, Timeout)
   when is_binary(BinChunk) andalso ?is_timeout(Timeout) ->
-    with_tcp({Host, Port}, 
+    with_tcp({Host, Port},
              fun (Socket, RemMS) ->
                      ok = gen_tcp:send(Socket, BinChunk),
                      gen_tcp:recv(Socket, 0, RemMS)
-             end, 
-            Timeout).
+             end,
+             Timeout).
 
 udp_open() ->
     gen_udp:open(0, [binary, {active, false}]).
@@ -95,7 +95,7 @@ udp_send({Host, Port}, BinChunk) when is_binary(BinChunk) ->
     with_udp(fun (Socket) -> gen_udp:send(Socket, Host, Port, BinChunk) end).
 udp_send_recv({Host, Port}, BinChunk) when is_binary(BinChunk) ->
     udp_send_recv({Host, Port}, BinChunk, infinity).
-udp_send_recv({Host, Port}, BinChunk, Timeout) 
+udp_send_recv({Host, Port}, BinChunk, Timeout)
   when is_binary(BinChunk) andalso ?is_timeout(Timeout) ->
     with_udp(fun (Socket) ->
                      ok = gen_udp:send(Socket, Host, Port, BinChunk),

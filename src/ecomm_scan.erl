@@ -7,23 +7,23 @@
 
 %%%%%%%%%%
 
-%% Example Frame Definition (of lrf_trace log):
+%% Example Frame Definition (of trace log):
 %% [timestamp, <<"\s">>, txn_id, <<"\n">>, params_in, <<"\n----------\n">>, params_out, <<"\n">>].
 
 framedef_keys(FrameDef) ->
-    [K || K <- FrameDef, 
-          is_atom(K) orelse (is_tuple(K) andalso 
-                             size(K) == 2 andalso 
+    [K || K <- FrameDef,
+          is_atom(K) orelse (is_tuple(K) andalso
+                             size(K) == 2 andalso
                              is_atom(element(1, K)))].
 
 pass2_2(_, Arg2) -> Arg2.
 pass2_2_to_str(_, Arg2) -> binary_to_list(Arg2).
-    
+
 line_lf_delim(Bin) ->
     line_lf_delim1(Bin, 0, size(Bin), size(Bin)).
 line_lf_delim1(Bin, StartPos, RemSize, Size) ->
     case binary:match(Bin, <<"\n">>, [{scope, {StartPos, RemSize}}]) of
-        nomatch -> 
+        nomatch ->
             incomplete;
         {Pos, End} when Pos + End + 1 == Size ->
             {Bin, <<>>};
@@ -36,11 +36,11 @@ line_lf_delim1(Bin, StartPos, RemSize, Size) ->
             end
     end.
 
-           
+
 str(X, FrameDef) when is_list(FrameDef) ->
     str(X, FrameDef, undefined).
 str(Str, FrameDef, MaxFrames) when is_list(Str), is_list(FrameDef) ->
-    str(list_to_binary(Str), FrameDef, MaxFrames); 
+    str(list_to_binary(Str), FrameDef, MaxFrames);
 str(Bin, FrameDef, MaxFrames) when is_binary(Bin), is_list(FrameDef) ->
     parse1(Bin, FrameDef, {[], queue:new(), MaxFrames, FrameDef}, fun pass2_2_to_str/2).
 
@@ -85,7 +85,7 @@ parse1(Bin, [{K, Fn}, <<Delim/binary>> | FDef], {FrameKVs, ResFrames, MaxFrames,
             FrameKVs1 = [{K, Fn(K, V)} | FrameKVs],
             parse1(RemBin, FDef, {FrameKVs1, ResFrames, MaxFrames, FrameDef}, ConvFn)
     end;
-parse1(Bin, [EatFn | FDef], {FrameKVs, ResFrames, MaxFrames, FrameDef}, ConvFn) 
+parse1(Bin, [EatFn | FDef], {FrameKVs, ResFrames, MaxFrames, FrameDef}, ConvFn)
   when is_function(EatFn, 1) ->
     {<<>>, RemBin} = EatFn(Bin),
     parse1(RemBin, FDef, {FrameKVs, ResFrames, MaxFrames, FrameDef}, ConvFn).
@@ -120,7 +120,7 @@ incr1(ToType, FrameFn, In, FrameDef, State) when is_function(ToType, 3) ->
 %% Delim should generally be just endline char(s) (0xA, or 0xD,0xA)
 fold_chunks(KVsFn, LineFrameDef, State, Delim, Bin) ->
     fold_chunks1(KVsFn, LineFrameDef, State, {<<>>, undefined}, Delim, Bin).
-    
+
 fold_chunks1(KVsFn, LineFrameDef, State, {CurrLineBuf, PrevLine}, Delim, Bin) ->
     case binary:split(Bin, Delim) of
         [_] ->

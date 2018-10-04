@@ -10,7 +10,8 @@
 %%%===================================================================
 
 start_link(Name, MaxRequestsPerSec, MaxRequestAgeMSec) ->
-    supervisor:start_link({local, name(Name)}, ?MODULE, [Name, MaxRequestsPerSec, MaxRequestAgeMSec]).
+    supervisor:start_link({local, name(Name)}, ?MODULE,
+                          [Name, MaxRequestsPerSec, MaxRequestAgeMSec]).
 
 name(Name) when is_atom(Name) ->
     binary_to_atom(<<"ecomm_throttle_sup_", (atom_to_binary(Name, utf8))/binary>>, utf8);

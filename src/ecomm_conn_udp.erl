@@ -29,9 +29,10 @@
 %%% Internal API
 %%%===================================================================
 
-start({_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState) when is_list(AppState) ->
+start({_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState)
+  when is_list(AppState) ->
     gen_server:start(?MODULE, [Callbacks, AppState], []).
-start({_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState, Throttler) 
+start({_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState, Throttler)
   when is_list(AppState), is_atom(Throttler) ->
     gen_server:start(?MODULE, [Callbacks, AppState, Throttler], []).
 
@@ -41,7 +42,7 @@ start({_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState, Thrott
 
 init([{ConnStat, Codec, AppHandler, ErrReport}, AppState]) ->
     {ok, #ecomm_conn_udp{dec_state = ecomm_fn:apply(Codec, [{decode, init}]),
-                         conn_stat = ConnStat, 
+                         conn_stat = ConnStat,
 			 codec = Codec,
 			 app_handler = AppHandler,
                          err_report = ErrReport,
@@ -77,18 +78,23 @@ ensure_options({open, Opts}) ->
 
 %%%%%%%%%% result of handle_data function is result of gen_server:handle_info function
 
--define(report_err(Body, AppState, S), 
-        (try Body of 
-             R -> R 
+-define(report_err(Body, AppState, S),
+        (try Body of
+             R -> R
          catch
              Ex:Err ->
                  #ecomm_conn_udp{err_report = ErrReport} = S,
                  ecomm_fn:apply(ErrReport, [{Ex, Err, erlang:get_stacktrace(), AppState}])
          end)).
 
-handle_data(PacketIn, #ecomm_conn_udp{listen_socket = LSock, peer = Peer, dec_state = DecState,
-				      conn_stat = ConnStat, codec = Codec, app_handler = AppHandler,
-                                      state = AppState, throttler = Throttler} = S) ->
+handle_data(PacketIn, #ecomm_conn_udp{listen_socket = LSock,
+                                      peer = Peer,
+                                      dec_state = DecState,
+				      conn_stat = ConnStat,
+                                      codec = Codec,
+                                      app_handler = AppHandler,
+                                      state = AppState,
+                                      throttler = Throttler} = S) ->
     ?report_err(
        begin
            AppState1 = [{protocol, udp}, {socket, LSock}, {peer, Peer}, {conn_pid, self()} | AppState],
@@ -128,7 +134,7 @@ handle_data(PacketIn, #ecomm_conn_udp{listen_socket = LSock, peer = Peer, dec_st
        end, AppState, S).
 
 
-handle_reply(Reply, {TargetIP, TargetPort}, 
+handle_reply(Reply, {TargetIP, TargetPort},
              #ecomm_conn_udp{listen_socket = LSock, codec = Codec, state = AppState} = S) ->
     ?report_err(
        case encode(Codec, Reply) of
@@ -151,7 +157,7 @@ run_throttled(Fun, Request, #ecomm_conn_udp{throttler = Throttler, peer = Peer} 
         FunResult ->
             FunResult
     end.
-        
+
 %%%%%%%%%% no gen_server state here
 
 conn_start(ConnStat, AppState) ->

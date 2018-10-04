@@ -16,12 +16,12 @@
 -define(ENC_BL, <<"\r\n\r\n">>).
 -define(ENC_MIME_BOUNDARY, <<"MIME_boundary_h7Fc5n9R02KqpLiJ6FN8">>).
 
--record(sip_body, 
+-record(sip_body,
         {ctype          :: binary(),
-         headers = []   :: [{binary(), binary()}], 
+         headers = []   :: [{binary(), binary()}],
          content = <<>> :: binary()}).
 
--record(sip_parser, 
+-record(sip_parser,
         {state          :: meta | headers | body,
          clen           :: undefined | integer(),
          method         :: undefined | binary(),
@@ -31,7 +31,7 @@
          bodies  = []   :: [#sip_body{}],
          data_in = <<>> :: binary(),
          request = <<>> :: binary()}).
-                     
+
 
 sip_parser() ->
     #sip_parser{state = meta}.
@@ -46,7 +46,7 @@ decode(Packet, #sip_parser{state = meta, data_in = DataIn, request = <<>>} = P) 
             {incomplete, P#sip_parser{data_in = DataIn1}};
         [MetaChunk, DataIn2] ->
             {Method, Uri, Vsn} = decode_meta(MetaChunk),
-            decode(<<>>, P#sip_parser{state = headers, 
+            decode(<<>>, P#sip_parser{state = headers,
                                       method = Method,
                                       uri = Uri,
                                       vsn = Vsn,
@@ -64,13 +64,13 @@ decode(Packet, #sip_parser{state = headers, data_in = DataIn, request = Request}
             decode(<<>>, P#sip_parser{state = body,
                                       clen = binary_to_integer(CL),
                                       headers = Headers,
-                                      data_in = DataIn2, 
+                                      data_in = DataIn2,
                                       request = Request1})
-    end;    
-decode(Packet, #sip_parser{state = body, 
-                           clen = CLen, 
-                           headers = Headers, 
-                           data_in = DataIn, 
+    end;
+decode(Packet, #sip_parser{state = body,
+                           clen = CLen,
+                           headers = Headers,
+                           data_in = DataIn,
                            request = Request} = P) ->
     DataIn1 = <<DataIn/binary, Packet/binary>>,
     if size(DataIn1) < CLen ->
@@ -86,7 +86,7 @@ decode(Packet, #sip_parser{state = body,
             P2 = case lists:keyfind(<<"Content-Type">>, 1, Headers) of
                      false ->
                          P1;
-                     {_, <<"multipart/mixed;boundary=", Tag/binary>>} -> 
+                     {_, <<"multipart/mixed;boundary=", Tag/binary>>} ->
                          P1#sip_parser{bodies = decode_bodies(BodyChunk, Tag)};
                      {_, CType} = Header ->
                          P1#sip_parser{bodies = [#sip_body{ctype = CType,
@@ -119,8 +119,8 @@ decode_bodies(Chunk, Tag) ->
      end || BodyChunk <- Chunks].
 
 construct_request_kvs(#sip_parser{} = P) ->
-    [{meta, [{type, request}, 
-             {method, P#sip_parser.method}, 
+    [{meta, [{type, request},
+             {method, P#sip_parser.method},
              {uri, P#sip_parser.uri},
              {vsn, P#sip_parser.vsn}]},
      {headers,
@@ -130,10 +130,10 @@ construct_request_kvs(#sip_parser{} = P) ->
            _ -> {Name, Val}
        end || {Name, Val} <- P#sip_parser.headers]} |
      case P#sip_parser.bodies of
-         [] -> 
+         [] ->
              [];
          [_ | _] = Bodies->
-             [{body, [{type, multipart}, 
+             [{body, [{type, multipart},
                       {parts, [[{headers, PartHs}, {content, PartContent}] ||
                                   #sip_body{headers = PartHs , content = PartContent} <- Bodies,
                                   PartContent /= <<>>]}]}]
@@ -176,16 +176,17 @@ decode_address(<<UnknownTarget/binary>>) ->
 decode_address1(Scheme, AddressChunk) when is_atom(Scheme), is_binary(AddressChunk) ->
     {Target, HostPortKVs, ParamsKVs} = split_address(AddressChunk),
     ParamsKVs1 = if ParamsKVs == [] -> []; true -> [{parameters, ParamsKVs}] end,
-    lists:append([[{scheme, Scheme}, {target, binary_to_list(Target)}], HostPortKVs, ParamsKVs1]).
-    
+    lists:append([[{scheme, Scheme}, {target, binary_to_list(Target)}],
+                  HostPortKVs, ParamsKVs1]).
+
 
 address_host_port_kvs(HostPortChunk) when is_binary(HostPortChunk) ->
     case HostPortChunk of
         <<>> ->
             [];
-        _ -> 
+        _ ->
             [Host | PortChunk] = binary:split(HostPortChunk, <<":">>),
-            [{host, binary_to_list(Host)} | 
+            [{host, binary_to_list(Host)} |
              case PortChunk of
                  [] -> [];
                  [PortNo] -> [{port, binary_to_integer(PortNo)}]
@@ -195,12 +196,14 @@ address_host_port_kvs(HostPortChunk) when is_binary(HostPortChunk) ->
 split_address(TargetChunk) when is_binary(TargetChunk) ->
     [TargetParamsInChunk, ParamsOutChunk] = binary:split(TargetChunk, <<">">>),
     ParamsOut = decode_parameters(ParamsOutChunk),
-    case {binary:split(TargetParamsInChunk, <<";">>), binary:split(TargetParamsInChunk, <<"@">>)} of
+    case {binary:split(TargetParamsInChunk, <<";">>),
+          binary:split(TargetParamsInChunk, <<"@">>)} of
         {[Target1, ParamsInChunk], [Target2 | _]} when size(Target1) < size(Target2) ->
             {Target1, [], ParamsOut ++ decode_parameters(ParamsInChunk)};
         {[Target1, _], [Target2, HostPort0]} when size(Target2) < size(Target1) ->
             [HostPort, ParamsInChunk] = binary:split(HostPort0, <<";">>),
-            {Target2, address_host_port_kvs(HostPort), ParamsOut ++ decode_parameters(ParamsInChunk)};
+            {Target2, address_host_port_kvs(HostPort), ParamsOut ++
+                 decode_parameters(ParamsInChunk)};
         {[Target1], [Target2, HostPort]} when size(Target2) < size(Target1) ->
             {Target2, address_host_port_kvs(HostPort), ParamsOut};
         {[Target0], [Target0]} ->
@@ -237,7 +240,7 @@ encode(Props) when is_list(Props) ->
     {Reply, []} = ecomm_pl:mgetv([status, code, headers, body], Props),
     encode(list_to_tuple([sip_reply | Reply]));
 
-encode({sip_reply, Status, Code, Headers}) 
+encode({sip_reply, Status, Code, Headers})
   when is_binary(Status), is_integer(Code), is_list(Headers) ->
     encode({sip_reply, Status, Code, Headers, <<>>});
 
@@ -257,7 +260,7 @@ encode({sip_reply, Status, Code, Headers, Body})
            ?ENC_NL/binary>> ||
           {K, V} <- Headers1 >>/binary, ?ENC_NL/binary,
       Body/binary>>;
-    
+
 encode({sip_reply, Status, Code, Headers, MultiPartSpecs})
   when is_binary(Status), is_integer(Code), is_list(Headers), is_list(MultiPartSpecs) ->
     {[multipart, Parts], []} = ecomm_pl:mgetv([type, parts], MultiPartSpecs),
@@ -280,9 +283,9 @@ encode_multipart(MultiPartSpec) when is_list(MultiPartSpec) ->
     {[Headers, Content], []} = ecomm_pl:mgetv([headers, content], MultiPartSpec),
     {_, ContentType} = lists:keyfind(<<"Content-Type">>, 1, Headers),
     Headers1 = proplists:delete(<<"Content-Type">>, Headers),
-    <<"--", ?ENC_MIME_BOUNDARY/binary, ?ENC_NL/binary, 
+    <<"--", ?ENC_MIME_BOUNDARY/binary, ?ENC_NL/binary,
       "Content-Type: ", ContentType/binary, ?ENC_NL/binary,
-      << <<K/binary, ": ", V/binary, ?ENC_NL/binary >> || {K, V} <- Headers1 >>/binary, ?ENC_NL/binary, 
+      << <<K/binary, ": ", V/binary, ?ENC_NL/binary >> || {K, V} <- Headers1 >>/binary, ?ENC_NL/binary,
       Content/binary, ?ENC_BL/binary>>.
 
 %%
@@ -312,7 +315,8 @@ encode_address([_ | _] = Props) ->
                  undefined -> <<>>;
                  Name -> <<(to_bin(Name))/binary, " ">>
              end,
-    {InsideParamKVs, TagParamKVs} = lists:partition(fun ({"tag", _}) -> false; ({_, _}) -> true end, 
+    {InsideParamKVs, TagParamKVs} = lists:partition(fun ({"tag", _}) -> false;
+                                                        ({_, _}) -> true end,
                                                     proplists:get_value(parameters, Props, [])),
     InsideParams = encode_parameters_suffix(InsideParamKVs),
     AddressPrefix = case ecomm_pl:mgetv([scheme, service, target], Props) of
@@ -341,4 +345,3 @@ to_bin(I) when is_integer(I) -> integer_to_binary(I);
 to_bin(F) when is_float(F) -> float_to_binary(F);
 to_bin(A) when is_atom(A) -> atom_to_binary(A, utf8);
 to_bin(B) when is_binary(B) -> B.
-

@@ -1,6 +1,6 @@
 -module(ecomm_conn_mgr).
 
--export([enable/1, enable_throttled/2, disable/1, 
+-export([enable/1, enable_throttled/2, disable/1,
          list_connections/0, list_connections/1]). % API
 
 -export([default_conn_stat/1, default_codec/1, default_err_report/1, echo_app_handler/1]).
@@ -27,7 +27,7 @@ enable({Protocol, Port, Options, Callbacks, AppState}) ->
 def_cstat() -> {?MODULE, default_conn_stat}.
 def_codec() -> {?MODULE, default_codec}.
 def_error() -> {?MODULE, default_err_report}.
-    
+
 parse_callbacks(AppHandler) when is_function(AppHandler, 1) ->
     {def_cstat(), def_codec(), AppHandler, def_error()};
 parse_callbacks({AppHandler}) ->
@@ -56,7 +56,7 @@ enable1({udp, RecvPort, UDPOpts, Callbacks, AppState}) ->
     enable_udp(RecvPort, UDPOpts, Callbacks, AppState).
 
 
-    
+
 enable_throttled({Protocol, Port, Options, Callbacks}, undefined) ->
     enable({Protocol, Port, Options, Callbacks});
 enable_throttled({Protocol, Port, Options, Callbacks}, {MaxReqsPerSec, MaxReqAgeMSec}) ->
@@ -88,8 +88,8 @@ list_connections(Proto) when Proto == udp; Proto == tcp ->
          {registered_name, Name} = process_info(Pid, registered_name),
          NameBin = atom_to_binary(Name, utf8),
          NameSz = size(NameBin),
-         Pos = scanr_bin(fun ($\_, Idx) -> {stop, Idx}; 
-                             (_, Idx) -> {ok, Idx - 1} 
+         Pos = scanr_bin(fun ($\_, Idx) -> {stop, Idx};
+                             (_, Idx) -> {ok, Idx - 1}
                          end, NameBin, NameSz - 1),
          {Proto, binary_to_integer(binary:part(NameBin, Pos + 1, NameSz - Pos - 1))}
      end || {_, Pid, _, _} <- supervisor:which_children(
@@ -109,11 +109,13 @@ ensure_tcp_options(TCPOpts) ->
 	    {error, Reason}
     end.
 
-enable_tcp(ListenPort, TCPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState)
+enable_tcp(ListenPort, TCPOpts,
+           {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks,
+           AppState)
   when is_integer(ListenPort), is_list(TCPOpts), is_list(AppState) ->
     case ensure_tcp_options(TCPOpts) of
 	{ok, TCPOpts1, NumAcceptors} ->
-	    CSockFn = fun (LSock, CSock) -> 
+	    CSockFn = fun (LSock, CSock) ->
 			      start_tcp_handler({LSock, CSock}, Callbacks, AppState)
 		      end,
 	    ecomm_tcps_sup:add_sup(ListenPort, TCPOpts1, CSockFn, NumAcceptors);
@@ -121,7 +123,8 @@ enable_tcp(ListenPort, TCPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = C
 	    {error, Reason}
     end.
 
-enable_throttled_tcp(ListenPort, TCPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, 
+enable_throttled_tcp(ListenPort, TCPOpts,
+                     {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks,
                      AppState, MaxReqsPerSec, MaxReqAgeMSec)
   when is_integer(ListenPort),
        is_list(TCPOpts), is_list(AppState),
@@ -129,7 +132,7 @@ enable_throttled_tcp(ListenPort, TCPOpts, {_ConnStat, _Codec, _AppHandler, _ErrR
     case ensure_tcp_options(TCPOpts) of
 	{ok, TCPOpts1, NumAcceptors} ->
             Throttler = ecomm_throttle:name(ListenPort),
-	    CSockFn = fun (LSock, CSock) -> 
+	    CSockFn = fun (LSock, CSock) ->
 			      start_tcp_handler({LSock, CSock}, Callbacks, AppState, Throttler)
 		      end,
 	    ecomm_tcps_sup:add_sup(ListenPort, TCPOpts1, CSockFn, NumAcceptors,
@@ -137,8 +140,8 @@ enable_throttled_tcp(ListenPort, TCPOpts, {_ConnStat, _Codec, _AppHandler, _ErrR
 	{error, Reason} ->
 	    {error, Reason}
     end.
-    
-       
+
+
 start_tcp_handler({LSock, CSock}, Callbacks, AppState) ->
     {ok, HandlerPid} = ecomm_conn_tcp:start(Callbacks, AppState),
     init_tcp_handler(HandlerPid, {LSock, CSock}).
@@ -162,9 +165,9 @@ init_tcp_handler(HandlerPid, {LSock, CSock}) ->
 
 disable_tcp(ListenPort) when is_integer(ListenPort) ->
     case whereis(ecomm_tcp_sup:name(ListenPort)) of
-	undefined -> 
+	undefined ->
 	    {error, not_found};
-	Sup -> 
+	Sup ->
 	    supervisor:terminate_child(ecomm_tcps_sup, Sup)
     end.
 
@@ -174,7 +177,9 @@ disable_tcp(ListenPort) when is_integer(ListenPort) ->
 ensure_udp_options(UDPOpts) ->
     ecomm_conn_udp:ensure_options({open, UDPOpts}).
 
-enable_udp(RecvPort, UDPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, AppState)
+enable_udp(RecvPort, UDPOpts,
+           {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks,
+           AppState)
   when is_integer(RecvPort),
        is_list(UDPOpts), is_list(AppState) ->
     case ensure_udp_options(UDPOpts) of
@@ -187,7 +192,8 @@ enable_udp(RecvPort, UDPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = Cal
 	    {error, Reason}
     end.
 
-enable_throttled_udp(RecvPort, UDPOpts, {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks, 
+enable_throttled_udp(RecvPort, UDPOpts,
+                     {_ConnStat, _Codec, _AppHandler, _ErrReport} = Callbacks,
                      AppState, MaxReqsPerSec, MaxReqAgeMSec)
   when is_integer(RecvPort),
        is_list(UDPOpts), is_list(AppState),
@@ -219,7 +225,7 @@ disable_udp(RecvPort) when is_integer(RecvPort) ->
     case whereis(ecomm_udp_sup:name(RecvPort)) of
 	undefined ->
 	    {error, not_found};
-	Sup -> 
+	Sup ->
 	    supervisor:terminate_child(ecomm_udps_sup, Sup)
     end.
 
@@ -253,10 +259,10 @@ default_codec({encode, {overload, _Packet}}) ->
     {ok, <<"!!! OVERLOAD at ", (ecomm_test:format_udate_bin())/binary, " !!!">>}.
 
 default_err_report({Ex, Err, Stacktrace, State}) ->
-    io:format("!!!!!!!!!! ecomm_conn_mgr: ~p ~p~nstacktrace: ~p~nlast state: ~p~n", 
+    io:format("!!!!!!!!!! ecomm_conn_mgr: ~p ~p~nstacktrace: ~p~nlast state: ~p~n",
               [Ex, Err, Stacktrace, State]),
     exit({Ex, Err}). % let failed conn die
-    
+
 %%%==============================================
 %%% Testing callbacks
 %%%==============================================
@@ -277,12 +283,13 @@ echo_dump_callbacks(ToFilename) ->
 
 echo_test(Proto, Port) when Proto == tcp; Proto == udp ->
     enable({Proto, Port, [], echo_callbacks()}).
-throttled_echo_test(Proto, Port, MaxReqsPerSec, MaxReqAgeMSec) when Proto == tcp; Proto == udp ->
+throttled_echo_test(Proto, Port, MaxReqsPerSec, MaxReqAgeMSec)
+  when Proto == tcp; Proto == udp ->
     enable_throttled({Proto, Port, [], echo_callbacks()}, {MaxReqsPerSec, MaxReqAgeMSec}).
 
 echo_dump_test(Proto, Port, Filename) when Proto == tcp; Proto == udp ->
     enable({Proto, Port, [], echo_dump_callbacks(Filename)}).
-throttled_echo_dump_test(Proto, Port, Filename, MaxReqsPerSec, MaxReqAgeMSec) 
+throttled_echo_dump_test(Proto, Port, Filename, MaxReqsPerSec, MaxReqAgeMSec)
   when Proto == tcp; Proto == udp ->
     enable_throttled({Proto, Port, [], echo_dump_callbacks(Filename)}, {MaxReqsPerSec, MaxReqAgeMSec}).
 

@@ -14,7 +14,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]). % callbacks
 
 %% internal use only
--record(ecomm_conn_tcp, 
+-record(ecomm_conn_tcp,
 	{listen_socket :: gen_tcp:socket(),
 	 socket        :: gen_tcp:socket(),
 	 dec_state     :: binary() | any(),
@@ -24,7 +24,7 @@
          err_report    :: {atom(), atom()} | function(),
 	 state         :: term(),
          throttler     :: undefined | atom()}).
-	 	 
+
 %%%===================================================================
 %%% Internal API
 %%%===================================================================
@@ -44,7 +44,7 @@ stop(Pid) ->
 
 init([{ConnStat, Codec, AppHandler, ErrReport}, AppState]) ->
     {ok, #ecomm_conn_tcp{dec_state = ecomm_fn:apply(Codec, [{decode, init}]),
-                         conn_stat = ConnStat, 
+                         conn_stat = ConnStat,
 			 codec = Codec,
 			 app_handler = AppHandler,
                          err_report = ErrReport,
@@ -88,9 +88,9 @@ ensure_options({listen, Opts}) ->
 
 %%%%%%%%%% result of handle_* functions is result of gen_server:handle_info function
 
--define(report_err(Body, AppState, S), 
-        (try Body of 
-             R -> R 
+-define(report_err(Body, AppState, S),
+        (try Body of
+             R -> R
          catch
              Ex:Err ->
                  #ecomm_conn_tcp{err_report = ErrReport} = S,
@@ -113,7 +113,7 @@ handle_open(#ecomm_conn_tcp{listen_socket = LSock, socket = CSock,
        end, AppState1, S).
 
 handle_data(PacketIn, #ecomm_conn_tcp{socket = CSock, dec_state = DecState,
-				      codec = Codec, app_handler = AppHandler, 
+				      codec = Codec, app_handler = AppHandler,
 				      state = AppState, throttler = Throttler} = S) ->
     ?report_err(
        case decode(Codec, PacketIn, DecState) of
@@ -124,18 +124,18 @@ handle_data(PacketIn, #ecomm_conn_tcp{socket = CSock, dec_state = DecState,
                        handle_request(Request, CSock, {AppHandler, Codec}, AppState, S1);
                   SyncAsync == async ->
                        Conn = self(),
-                       HandleReq = 
+                       HandleReq =
                            fun () ->
                                    ?report_err(
                                       begin
                                           [put(K, V) || {K, V} <- ProcDict],
-                                          case handle_request(Request, CSock, {AppHandler, Codec}, 
+                                          case handle_request(Request, CSock, {AppHandler, Codec},
                                                               AppState, S1) of
-                                              {noreply, _} -> 
+                                              {noreply, _} ->
                                                   ok;
-                                              {stop, Reason, S1} -> 
+                                              {stop, Reason, S1} ->
                                                   gen_server:cast(Conn, {stop, Reason, S1})
-                                          end 
+                                          end
                                       end, AppState, S1)
                            end,
                        spawn(if Throttler == undefined -> HandleReq;
@@ -168,7 +168,7 @@ handle_reply(Reply, CSock, Codec, #ecomm_conn_tcp{state = AppState} = S) ->
        case encode(Codec, Reply) of
            {ok, PacketOut} ->
                case send_data(CSock, PacketOut) of
-                   ok -> 
+                   ok ->
                        {noreply, S};
                    {stop, Reason} ->
                        {stop, Reason, S}
@@ -178,13 +178,13 @@ handle_reply(Reply, CSock, Codec, #ecomm_conn_tcp{state = AppState} = S) ->
        end, AppState, S).
 
 throttled_thunk(Fun, Request, Conn, #ecomm_conn_tcp{throttler = Throttler,
-                                                    socket = CSock, 
+                                                    socket = CSock,
                                                     codec = Codec} = S) ->
     fun () ->
             case ecomm_throttle:run(Throttler, Fun) of
                 overload ->
                     case handle_reply({overload, Request}, CSock, Codec, S) of
-                        {noreply, _} -> 
+                        {noreply, _} ->
                             nop;
                         {stop, Reason, _} ->
                             gen_server:cast(Conn, {stop, Reason, S})
@@ -193,7 +193,7 @@ throttled_thunk(Fun, Request, Conn, #ecomm_conn_tcp{throttler = Throttler,
                     FunResult
             end
     end.
-        
+
 
 %%%%%%%%%% no gen_server state here
 

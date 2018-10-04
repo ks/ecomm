@@ -42,7 +42,7 @@ start_link(Name, {Min, Max} = Avail, StartElt, StopElt, ReportElt, ReplyTimeoutM
        (ReportElt == undefined orelse ?is_fun_spec(ReportElt, 1)) andalso
        (Min =< Max andalso Min > 0) andalso
        (StopElt == undefined orelse ?is_fun_spec(StopElt, 1)) andalso
-       (ReplyTimeoutMSecs == infinity 
+       (ReplyTimeoutMSecs == infinity
         orelse (is_integer(ReplyTimeoutMSecs) andalso ReplyTimeoutMSecs >= 0)) ->
     ecomm_fn:ensure(StartElt, 0),
     if ReportElt /= undefined -> ecomm_fn:ensure(ReportElt, 1); true -> ok end,
@@ -53,8 +53,8 @@ start_link(Name, {Min, Max} = Avail, StartElt, StopElt, ReportElt, ReplyTimeoutM
 request(LB, Fn, Data) ->
     request(LB, Fn, Data, undefined).
 request(LB, Fn, Data, TimeoutMS) %% we can override reply timeout for particular request
-  when is_function(Fn, 2) andalso 
-       (TimeoutMS == undefined orelse TimeoutMS == infinity 
+  when is_function(Fn, 2) andalso
+       (TimeoutMS == undefined orelse TimeoutMS == infinity
         orelse (is_integer(TimeoutMS) andalso TimeoutMS >= 0)) ->
     gen_server:call(LB, {request, Fn, Data, TimeoutMS}, infinity).
 
@@ -71,9 +71,9 @@ elts_list(LB) ->
 init([Ident, Avail, StartElt, StopElt, ReportElt, ReplyTimeoutMSecs]) ->
     process_flag(trap_exit, true), %% we want to shut down managed workers
     cast_start_elt(),
-    {ok, #ecomm_lb{ident = Ident, 
-                   start_elt = StartElt, 
-                   stop_elt = StopElt, 
+    {ok, #ecomm_lb{ident = Ident,
+                   start_elt = StartElt,
+                   stop_elt = StopElt,
                    report_elt = ReportElt,
                    avail = Avail,
                    reply_tm_ms = ReplyTimeoutMSecs,
@@ -107,10 +107,12 @@ handle_cast({add_elt, Elt}, #ecomm_lb{ident = Ident, avail = Avail, elts = Elts}
     Elts1 = add_elt({Elt, Mon}, Elts),
     maybe_report(S#ecomm_lb.report_elt, {elt_added, Ident, Elt, size(Elts1), Avail}),
     {noreply, S#ecomm_lb{elts = Elts1}};
-handle_cast({elt_start_failed, Error}, #ecomm_lb{ident = Ident, avail = Avail, elts = Elts} = S) ->
+handle_cast({elt_start_failed, Error},
+            #ecomm_lb{ident = Ident, avail = Avail, elts = Elts} = S) ->
     maybe_report(S#ecomm_lb.report_elt, {elt_start_failed, Ident, Error, size(Elts), Avail}),
     {noreply, S#ecomm_lb{}};
-handle_cast({replace_failed_elt, Elt}, #ecomm_lb{ident = Ident, avail = Avail, elts = Elts} = S) ->
+handle_cast({replace_failed_elt, Elt},
+            #ecomm_lb{ident = Ident, avail = Avail, elts = Elts} = S) ->
     case find_elt_mon(Elt, Elts) of
         {ok, Mon} ->
             maybe_report(S#ecomm_lb.report_elt, {elt_deleted, Ident, Elt, size(Elts), Avail}),
@@ -131,9 +133,11 @@ handle_call(elts_list, _From, #ecomm_lb{elts = Elts} = S) ->
     {Pids, _Mons} = lists:unzip(tuple_to_list(Elts)),
     {reply, Pids, S};
 
-handle_call({request, Fn, Data, OverrideTimeoutMS}, From, 
+handle_call({request, Fn, Data, OverrideTimeoutMS}, From,
             #ecomm_lb{reply_tm_ms = ReplyTimeoutMS} = S) ->
-    TimeoutMS = if OverrideTimeoutMS == undefined -> ReplyTimeoutMS; true -> OverrideTimeoutMS end,
+    TimeoutMS = if OverrideTimeoutMS == undefined -> ReplyTimeoutMS;
+                   true -> OverrideTimeoutMS
+                end,
     case do_schedule(S) of
         {ok, Elt, S1} ->
             spawn(?MODULE, try_request, [From, Fn, Elt, Data, TimeoutMS]),
@@ -145,7 +149,7 @@ handle_call({request, Fn, Data, OverrideTimeoutMS}, From,
 terminate(_Reason, #ecomm_lb{stop_elt = StopElt, elts = Elts}) ->
     foreach_elt(fun (Elt) -> catch StopElt(Elt) end, Elts).
 
-code_change(_OldVsn, State, _Extra) -> 
+code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -160,11 +164,13 @@ start_elt(LB, StartElt) ->
           end,
     gen_server:cast(LB, Res).
 
-do_schedule(#ecomm_lb{avail = {Min, _}, elt_idx = Idx, elts = Elts} = S) when Min =< size(Elts) ->
+do_schedule(#ecomm_lb{avail = {Min, _}, elt_idx = Idx, elts = Elts} = S)
+  when Min =< size(Elts) ->
     {ok, element(1, element(Idx, Elts)), S#ecomm_lb{elt_idx = next_idx(Idx, size(Elts))}};
-do_schedule(#ecomm_lb{avail = {Min, _}, elts = Elts}) when Min > size(Elts) ->
+do_schedule(#ecomm_lb{avail = {Min, _}, elts = Elts})
+  when Min > size(Elts) ->
     {error, min_limit}.
-    
+
 next_idx(Idx, EltsSize) when Idx < EltsSize ->
     Idx + 1;
 next_idx(Idx, EltsSize) when Idx >= EltsSize ->
@@ -173,8 +179,8 @@ next_idx(Idx, EltsSize) when Idx >= EltsSize ->
 try_request(From, Fn, Elt, Data, TimeoutMS) ->
     Reply = ecomm_fn:apply_tm(Fn, [Elt, Data], TimeoutMS),
     gen_server:reply(From, Reply).
-            
-maybe_report(undefined, _) -> 
+
+maybe_report(undefined, _) ->
     ok;
 maybe_report(Reporter, Event) ->
     catch ecomm_fn:apply(Reporter, [Event]).
@@ -213,20 +219,18 @@ t() ->
     Reporter = fun ({_Event, _Ident, _MaybeElt, _Count, {_Min, _Max}} = LBMsg) ->
                        io:format("////////// (test) Reporter: ~p~n", [LBMsg])
                end,
-    
+
     {ok, LB} = start_link(test, {3, 10}, StartElt, StopElt, Reporter),
-        
+
     ExecReq  = fun (Pid, Data) ->
                        io:format("////////// CALLING ~p with ~p~n", [Pid, Data]),
                        {ok, {data_res, Data}}
                end,
 
-    timer:sleep(1000), % let start at least 3 
+    timer:sleep(1000), % let start at least 3
 
     Res = request(LB, ExecReq, xxx_data),
 
     io:format("////////// SYNCREQ RES = ~p~n", [Res]),
 
     {ok, LB}.
-
-
